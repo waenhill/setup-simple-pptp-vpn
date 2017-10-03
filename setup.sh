@@ -1,27 +1,5 @@
 #!/bin/sh
-#    Setup Simple PPTP VPN server for Ubuntu and Debian
-#    Copyright (C) 2013-2015 Viljo Viitanen <viljo.viitanen@iki.fi> and contributors
-#
-#    This program is free software; you can redistribute it and/or modify
-#    it under the terms of the GNU General Public License as published by
-#    the Free Software Foundation; either version 2 of the License, or
-#    (at your option) any later version.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
-#
-#    You should have received a copy of the GNU General Public License along
-#    with this program; if not, write to the Free Software Foundation, Inc.,
-#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-#
-#    2013-11-06: initial version. Tested with Amazon EC2 Ubuntu 12.04 and 
-#                Digital Ocean Debian 7.0 and Ubuntu 12.04 images.
-#    2014-03-23: Added apt-get update.
-#    2014-09-18: Add help, allow custom username and password, thanks to dileep-p
-#    2015-01-25: Change external ip provider, thanks to theroyalstudent
-#    2017-10-03: Modification done for Debian (mondedie.fr)
+#    Setup Simple PPTP VPN server for Debian
 
 printhelp() {
 
@@ -99,30 +77,31 @@ visiteur	pptpd	pute	*
 END
 
 cp /etc/pptpd.conf /etc/pptpd.conf.bak
-cat >/etc/pptpd.conf <<END
-option /etc/ppp/pptpd-options
-logwtmp
-localip $ip	#192.168.2.1
-remoteip 192.168.2.10-100
-END
+echo "localip $ip" >> /etc/pptpd.conf
+echo "remoteip 10.1.0.1-100" >> /etc/pptpd.conf
+#Already in default file:
+#option /etc/ppp/pptpd-options
+#logwtmp
 
 cp /etc/ppp/pptpd-options /etc/ppp/pptpd-options.bak
-cat >/etc/ppp/pptpd-options <<END
-name pptpd
-refuse-pap
-refuse-chap
-refuse-mschap
-require-mschap-v2
-require-mppe-128
+cat >> /etc/ppp/pptpd-options <<END
 ms-dns 80.67.169.12
 ms-dns 80.67.169.40
 proxyarp
 lock
 nobsdcomp 
-novj
-novjccomp
-nologfd
 END
+#Already in default file:
+#name pptpd
+#refuse-pap
+#refuse-chap
+#refuse-mschap
+#require-mschap-v2
+#require-mppe-128
+#novj
+#novjccomp
+#nologfd
+
 
 echo
 echo "######################################################"
@@ -185,6 +164,6 @@ echo   "VPN username = $NAME   password = $PASS"
 echo   "============================================================"
 sleep 2
 
-service pptpd restart
+#service pptpd restart
 
 exit 0
