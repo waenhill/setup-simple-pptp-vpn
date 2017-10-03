@@ -21,22 +21,16 @@
 #    2014-03-23: Added apt-get update.
 #    2014-09-18: Add help, allow custom username and password, thanks to dileep-p
 #    2015-01-25: Change external ip provider, thanks to theroyalstudent
+#    2017-10-03: Modification done for Debian (mondedie.fr)
 
 printhelp() {
 
 echo "
-
 Usage: sh setup.sh [OPTION]
-
 If you are using custom password , Make sure its more than 8 characters. Otherwise it will generate random password for you. 
-
 If you trying set password only. It will generate Default user with Random password. 
-
 example: sudo bash setup.sh -u vpn -p mypass
-
 Use without parameter [ sudo bash setup.sh ] to use default username and Random password
-
-
   -u,    --username             Enter the Username
   -p,    --password             Enter the Password
 "
@@ -56,6 +50,10 @@ then
   exit 0
 fi
 
+echo
+echo "######################################################"
+echo "Downloading and Installing PoPToP"
+echo "######################################################"
 apt-get update
 
 apt-get -y install pptpd || {
@@ -63,25 +61,6 @@ apt-get -y install pptpd || {
   exit 1
 }
 
-#ubuntu has exit 0 at the end of the file.
-sed -i '/^exit 0/d' /etc/rc.local
-
-cat >> /etc/rc.local << END
-echo 1 > /proc/sys/net/ipv4/ip_forward
-#ssh channel
-iptables -I INPUT -p tcp --dport 22 -j ACCEPT
-#control channel
-iptables -I INPUT -p tcp --dport 1723 -j ACCEPT
-#gre tunnel protocol
-iptables -I INPUT  --protocol 47 -j ACCEPT
-
-iptables -t nat -A POSTROUTING -s 192.168.2.0/24 -d 0.0.0.0/0 -o eth0 -j MASQUERADE
-
-#supposedly makes the vpn work better
-iptables -I FORWARD -s 192.168.2.0/24 -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -j TCPMSS --set-mss 1356
-
-END
-sh /etc/rc.local
 
 #no liI10oO chars in password
 
@@ -100,26 +79,43 @@ then
    NAME="vpn"
 fi
 
+echo
+echo "######################################################"
+echo "Creating Server Config"
+echo "######################################################"
+
+# get the VPS IP
+ip=`ifconfig eth0 | grep 'inet adr' | awk {'print $2'} | sed s/.*://`
+
+cp /etc/ppp/chap-secrets /etc/ppp/chap-secrets.bak
 cat >/etc/ppp/chap-secrets <<END
 # Secrets for authentication using CHAP
-# client server secret IP addresses
-$NAME pptpd $PASS *
+#client	server	secret	IP	addresses
+$NAME	pptpd	$PASS	*
+waenhill	pptpd	niamoR24.	*
+waen	pptpd	niamoR24.	*
+waentorrents	pptpd	Romain24	*
+visiteur	pptpd	pute	*
 END
+
+cp /etc/pptpd.conf /etc/pptpd.conf.bak
 cat >/etc/pptpd.conf <<END
-option /etc/ppp/options.pptpd
+option /etc/ppp/pptpd-options
 logwtmp
-localip 192.168.2.1
+localip $ip	#192.168.2.1
 remoteip 192.168.2.10-100
 END
-cat >/etc/ppp/options.pptpd <<END
+
+cp /etc/ppp/pptpd-options /etc/ppp/pptpd-options.bak
+cat >/etc/ppp/pptpd-options <<END
 name pptpd
 refuse-pap
 refuse-chap
 refuse-mschap
 require-mschap-v2
 require-mppe-128
-ms-dns 8.8.8.8
-ms-dns 8.8.4.4
+ms-dns 80.67.169.12
+ms-dns 80.67.169.40
 proxyarp
 lock
 nobsdcomp 
@@ -128,12 +124,52 @@ novjccomp
 nologfd
 END
 
+echo
+echo "######################################################"
+echo "Forwarding IPv4 and Enabling it on boot"
+echo "######################################################"
+cp /etc/sysctl.conf /etc/sysctl.conf.bak
+cat >> /etc/sysctl.conf <<END
+net.ipv4.ip_forward=1
+END
+sysctl -p
+
+echo
+echo "######################################################"
+echo "Updating IPtables Routing and Enabling it on boot"
+echo "######################################################"
+iptables -t nat -A POSTROUTING -j SNAT --to $ip
+# saves iptables routing rules and enables them on-boot
+iptables-save -c > /etc/iptables.conf
+
+cat > /etc/network/if-pre-up.d/iptables <<END
+#!/bin/sh
+iptables-restore < /etc/iptables.conf
+END
+
+chmod +x /etc/network/if-pre-up.d/iptables
+cat >> /etc/ppp/ip-up <<END
+ifconfig ppp0 mtu 1400
+END
+
+echo
+echo "######################################################"
+echo "Restarting PoPToP"
+echo "######################################################"
+sleep 5
+service pptpd restart
+
+echo
+echo "######################################################"
+echo "Check server configurations"
+echo "######################################################"
 apt-get -y install wget || {
   echo "Could not install wget, required to retrieve your IP address." 
   exit 1
 }
 
 #find out external ip 
+cd /tmp
 IP=`wget -q -O - http://api.ipify.org`
 
 if [ "x$IP" = "x" ]
