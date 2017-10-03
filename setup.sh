@@ -70,10 +70,6 @@ cat >/etc/ppp/chap-secrets <<END
 # Secrets for authentication using CHAP
 #client	server	secret	IP	addresses
 $NAME	pptpd	$PASS	*
-waenhill	pptpd	niamoR24.	*
-waen	pptpd	niamoR24.	*
-waentorrents	pptpd	Romain24	*
-visiteur	pptpd	pute	*
 END
 
 cp /etc/pptpd.conf /etc/pptpd.conf.bak
